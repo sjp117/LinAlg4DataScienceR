@@ -1,0 +1,566 @@
+---
+title: "Chapter 15: Eigendecomposition and SVD Applications"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r}
+library(openxlsx)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(MASS)   # LDA
+library(magick)
+```
+
+## PCA
+
+```{r}
+# import data
+url <- "https://archive.ics.uci.edu/ml/machine-learning-databases/00247/data_akbilgic.xlsx"
+dat1 <- openxlsx::read.xlsx(xlsxFile = url, startRow = 2, detectDates = T)
+colnames(dat1)[3] <- "ISE_1"
+
+# date to long format
+datl <- dat1 |>
+    pivot_longer(cols = -date, names_to = "stock", values_to = "price") |>
+    mutate(stock = factor(stock))
+```
+
+### Exercise 15-1.
+
+```{r}
+# center data
+datlc <- datl |>
+    group_by(stock) |>
+    mutate(price = scale(price, scale = F, center = T))
+```
+
+```{r}
+# time series line plot of stock prices
+
+datlc |>
+    ggplot(aes(x = date, y = price, color = stock)) +
+    geom_line() +
+    scale_color_brewer(palette="Paired") +
+    labs(x = "date", y = "Market returns") +
+    theme_pubr()
+```
+
+```{r}
+# covariance matrix
+mat1 <- scale(dat1[,-1], scale = F)
+covmat <- (1 / nrow(mat1)) * crossprod(mat1)
+heatmap(covmat, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+```
+
+```{r}
+# correlation matrix
+dats <- dat1[,-1] |> scale()
+cormat <- crossprod(dats) / (nrow(dats) - 1)
+corrplot::corrplot(cormat, method = "color", addCoef.col = 'green')
+```
+
+The Steps to Perform a PCA
+
+1.  Compute the covariance matrix of the data.
+
+```{r}
+covmat
+```
+
+2.  Take the eigendecomposition of the covariance matrix.
+
+```{r}
+coveig <- eigen(covmat)
+```
+
+3.  Sort the eigenvalues descending by magnitude, and sort the eigenvectors accordingly.
+
+```{r}
+eigval <- coveig$values |> sort(decreasing = T)
+eigvec <- coveig$vectors
+```
+
+4.  Compute the "component scores" as the weighted combination of all data features, where the eigenvector provides the weights. The eigenvector associated with the largest eigenvalue is the "most important" component, meaning the one with the largest variance.
+
+5.  Convert the eigenvalues to percent variance explain to facilitate interpretation.
+
+```{r}
+comp <- mat1 %*% eigvec[,1:3]
+factorScore <- 100 * eigval / sum(eigval)
+```
+
+```{r}
+# scree plot of factor score
+plot(factorScore, type = "b", xlab = "Component number", ylab = "Variance explained")
+```
+
+```{r}
+days <- (dat1$date - min(dat1$date)) |> as.integer()
+compdat <- data.frame(comp, days)
+compdatl <- compdat |>
+    pivot_longer(cols = c("X1", "X2", "X3"), names_to = "comp")
+
+compdatl |>
+    filter(comp == c("X1", "X2")) |>
+    ggplot(aes(x = days, y = value, color = comp)) +
+    geom_line() +
+    scale_color_brewer(palette="Dark2") +
+    labs(x = "date", y = "Market returns") +
+    theme_pubr()
+```
+
+```{r}
+cor(comp[,1], comp[,2])
+
+comp[,2] %*% mat2 |> data.frame() |>
+    pivot_longer(cols = everything()) |>
+    mutate(name = factor(name)) |>
+    ggplot(aes(x = name, y = value)) +
+    geom_col() +
+    theme_pubr()
+```
+
+### Exercise 15-2.
+
+Reproduce results using SVD
+
+```{r}
+dat1
+```
+
+```{r}
+# 1. Take the SVD of the covariance matrix
+covsvd <- svd(covmat)
+
+# 2. Take the SVD of the data matrix directly, the right singular vectors (matrix V)
+datsvd <- dat1[,-1] |>
+    scale(scale = F) |>
+    svd()
+V <- datsvd$v
+
+D <- datsvd$d |> sqrt()
+```
+
+```{r}
+comp <- mat1 %*% V[,1:3]
+factorScore <- 100 * D / sum(D)
+```
+
+```{r}
+# scree plot of factor score
+plot(factorScore, type = "b", xlab = "Component number", ylab = "Variance explained")
+```
+
+```{r}
+days <- (dat1$date - min(dat1$date)) |> as.integer()
+compdat <- data.frame(comp, days)
+compdatl <- compdat |>
+    pivot_longer(cols = c("X1", "X2", "X3"), names_to = "comp")
+
+compdatl |>
+    filter(comp == c("X1", "X2")) |>
+    ggplot(aes(x = days, y = value, color = comp)) +
+    geom_line() +
+    scale_color_brewer(palette="Dark2") +
+    labs(x = "date", y = "Market returns") +
+    theme_pubr()
+```
+
+```{r}
+comp[,1] %*% mat2 |> data.frame() |>
+    pivot_longer(cols = everything()) |>
+    mutate(name = factor(name)) |>
+    ggplot(aes(x = name, y = value)) +
+    geom_col() +
+    theme_pubr()
+```
+
+### Exercise 15-3.
+
+-   `princomp()` uses spectral decomposition approach.
+
+-   `prcomp()` uses SVD
+
+```{r}
+mat1 <- scale(dat1[,-1])
+
+pca <- princomp(mat1)
+
+plot(pca)
+```
+
+### Exercise 15-4.
+
+```{r}
+mat1 <- matrix(data = rnorm(1000*2), nrow = 1000)
+mat1[,2] <- mat1[,2] * 0.05
+
+# rotation matrix
+theta1 <- -pi/6
+theta2 <- -pi/3
+rotmat1 <- matrix(data = c(cos(theta1), sin(theta1), -sin(theta1), cos(theta1)), nrow = 2)
+rotmat2 <- matrix(data = c(cos(theta2), sin(theta2), -sin(theta2), cos(theta2)), nrow = 2)
+```
+
+```{r}
+mat2 <- rbind((mat1 %*% rotmat1), (mat1 %*% rotmat2))
+```
+
+```{r}
+pca <- prcomp(mat2, scale. = T)
+```
+
+```{r}
+plot(mat2, asp = 1)
+biplot(pca)
+```
+
+## Linear Discriminant Analyses
+
+### Exercise 15-5.
+
+```{r}
+# simulate data
+
+mat1 <- matrix(data = rnorm(200*2), nrow = 200)
+mat1[,1] <- mat1[,1] + mat1[,2]
+
+offset <- c(2, -1)
+
+mat2 <- mat1
+mat2[,1] <- mat2[,1] + offset[1]
+mat2[,2] <- mat2[,2] + offset[2]
+
+mat3 <- rbind(mat1, mat2)
+classlab <- c(rep(0,200), rep(1,200))
+```
+
+```{r}
+plt <- cbind(mat3, classlab) |>
+    data.frame() |>
+    mutate(classlab = factor(classlab)) |>
+    ggplot(aes(x = V1, y = V2, color = classlab)) +
+    geom_point() +
+    geom_density_2d() +
+    theme_pubr()
+
+plt <- ggExtra::ggMarginal(
+    plt,
+    type = "density",
+    margins = "both",
+    groupColour = TRUE,
+    groupFill = TRUE
+)
+
+plt
+```
+
+### Exercise 15-6.
+
+```{r}
+# covariance matrix
+
+## within class covariance
+
+# computing the covariance of each class separately and then averaging those covariance matrices
+
+wcov1 <- (1 / nrow(mat1)) * crossprod(mat1)
+wcov2 <- (1 / nrow(mat2)) * crossprod(mat2)
+wcov <- (wcov1 + wcov2) / 2
+wcov
+
+## between class covariance
+
+# computing the means of each data feature
+m1f1 <- mean(mat1[,1])
+m1f2 <- mean(mat1[,2])
+m2f1 <- mean(mat2[,1])
+m2f2 <- mean(mat2[,2])
+
+# concatenating those feature-mean vectors for all classes
+temp1 <- matrix(data = c(m1f1, m2f1, m1f2, m2f2), nrow = 2)
+
+# computing the covariance matrix of that concatenated matrix
+bcov <- (1 / nrow(temp1)) * crossprod(temp1)
+```
+
+```{r}
+# LDA via GED
+ge <- geigen::geigen(bcov, wcov)
+
+sortvals <- sort(ge$values, decreasing = T)
+
+X <- scale(mat3, scale = F)
+lda <- X %*% ge$vectors
+```
+
+```{r}
+cbind(mat3, classlab) |>
+    data.frame() |>
+    mutate(classlab = factor(classlab)) |>
+    ggplot(aes(x = V1, y = V2, color = classlab, shape = classlab)) +
+    geom_point() +
+    geom_segment(aes(x = 0, y = 0, xend = ge$vectors[1,1], yend = ge$vectors[1,2]),
+                 color = "black", linetype = "dashed") +
+    geom_segment(aes(x = 0, y = 0, xend = ge$vectors[2,1], yend = ge$vectors[2,2]),
+                 color = "black") +
+    labs(x = "GED axis 1", y = "GED axis 2", title = "Data in variable space") +
+    coord_fixed() +
+    theme_minimal()
+```
+
+```{r}
+cbind(mat3, classlab) |>
+    data.frame() |>
+    mutate(classlab = factor(classlab)) |>
+    ggplot(aes(x = lda[,1], y = lda[,2], color = classlab, shape = classlab)) +
+    geom_point() +
+    labs(x = "GED axis 1", y = "GED axis 2", title = "Data in GED space") +
+    coord_fixed() +
+    theme_minimal()
+```
+
+```{r}
+lda2 <- cbind(lda, classlab) |> data.frame()
+lda2 <- lda2 |>
+    mutate(predlab = if_else(V2 > 0, 0, 1),
+           classlab = factor(classlab),
+           predlab = factor(predlab),
+           sample = 1:nrow(lda2))
+
+lda2 |>
+    # pivot_longer(cols = c("classlab", "predlab"), names_to = "class") |>
+    ggplot(aes(x = sample, y = predlab)) +
+    geom_point() +
+    geom_vline(xintercept = 200, linetype = "dashed") +
+    labs(x = "Sample number", y = "Predicted classes") +
+    theme_pubr()
+```
+
+### Exercise 15-7.
+
+```{r}
+V <- ge$vectors
+
+t(V) %*% V
+t(V) %*% wcov %*% V |> round(15)
+```
+
+### Exercise 15-8.
+
+```{r}
+df <- data.frame(mat3, classlab)
+df[,-3]
+model <- lda(classlab~X1+X2, data = df)
+pred <- model |> predict(df[,-3])
+```
+
+```{r}
+pred2 <- pred$class
+df2 <- data.frame(pred2, sample = 1:length(pred2))
+
+ggplot() +
+    geom_point(data = df2, aes(x = sample, y = pred2), shape = 3, size = 4, color = "red") +
+    geom_point(data = lda2, aes(x = sample, y = predlab), shape = 0, size = 2) +
+    geom_vline(xintercept = 200, linetype = "dashed") +
+    labs(x = "Sample number", y = "Predicted classes") +
+    theme_pubr()
+```
+
+## SVD for Low-Rank Approximations
+
+### Exercise 15-10.
+
+```{r}
+url <- "https://az334034.vo.msecnd.net/images-8/stravinsky-pablo-picasso-1920-0d36ed39.png"
+img <- imager::load.image(url)
+imgmat <- as.matrix(img)
+```
+
+```{r}
+url <- "https://az334034.vo.msecnd.net/images-8/stravinsky-pablo-picasso-1920-0d36ed39.png"
+img <- imager::load.image(url)
+
+plot(img)
+```
+
+```{r}
+svd <- svd(img)
+S <- svd$d |> diag(nrow = nrow(img), ncol = ncol(img))
+U <- svd$u
+V <- svd$v
+Vt <- t(V)
+```
+
+```{r}
+heatmap(as.matrix(img), Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+heatmap(U, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+heatmap(S, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+heatmap(Vt, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+```
+
+```{r}
+# scree plot
+Sp <- (svd$d / sum(svd$d)) * 100
+plot(Sp, type = "b", xlab = "Component number", ylab = "Variance explained (%)")
+```
+
+```{r}
+L1 <- outer(U[,1], Vt[1,]) * S[1,1]
+L2 <- outer(U[,2], Vt[2,]) * S[2,2]
+L1 <- outer(U[,1], Vt[1,]) * S[1,1]
+L1 <- outer(U[,1], Vt[1,]) * S[1,1]
+heatmap(L1, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+```
+
+```{r}
+for (i in 1:4) {
+    for (j in 1:4) {
+        layer <- outer(U[,i], Vt[j,]) * S[i,i]
+        (heatmap(layer, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1)))
+    }
+}
+```
+
+```{r}
+layer1 <- outer(U[,1], Vt[1,]) * S[1,1]
+layer2 <- outer(U[,2], Vt[1,]) * S[2,2]
+layer3 <- outer(U[,3], Vt[1,]) * S[3,3]
+layer4 <- outer(U[,4], Vt[1,]) * S[4,4]
+```
+
+```{r}
+recon <- layer1 + layer2 + layer3 + layer4
+
+heatmap(recon, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+```
+
+### Exercise 15-11.
+
+```{r}
+k = 80
+recon <- U[,1:k] %*% S[1:k,1:k] %*% Vt[1:k,]
+sqerror <- (imgmat - recon)^2
+```
+
+```{r}
+heatmap(imgmat, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+heatmap(recon, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+heatmap(sqerror, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+```
+
+```{r}
+ogsize <- object.size(imgmat) / 1024^2
+reconsize <- object.size(recon) / 1024^2
+
+usize <- object.size(U[,1:k]) / 1024^2
+ssize <- object.size(S[1:k,1:k]) / 1024^2
+vsize <- object.size(Vt[1:k,]) / 1024^2
+reconvecsize <- usize + ssize + vsize
+
+sprintf("Original is %.2f mb", ogsize)
+sprintf("Reconstruction is %.2 fmb", reconsize)
+sprintf("Recon vectors are %.2 fmb (using k=%d comps.)", reconvecsize, k)
+
+sprintf("Compression of %.2 f%%", reconvecsize / ogsize * 100)
+```
+
+### Exercise 15-12.
+
+```{r}
+# k = 80
+# recon <- U[,1:k] %*% S[1:k,1:k] %*% Vt[1:k,]
+# sqerror <- (imgmat - recon)^2
+errorlist <- array(data = 0, dim = nrow(imgmat) - 1)
+
+for (k in 2:nrow(imgmat)) {
+    recon <- U[,1:k] %*% S[1:k,1:k] %*% Vt[1:k,]
+    sqerror <- (imgmat - recon)^2
+    forbdist <- norm(sqerror, type = "F")
+    errorlist[k - 1] <- forbdist
+}
+```
+
+```{r}
+plot(errorlist)
+```
+
+## SVD for Image Denoising
+
+### Exercise 15-13.
+
+```{r}
+# generate sine grating
+
+imgmat <- img[,,,]
+
+singrid <- pracma::meshgrid(x = seq(from = -100, to = 100, length.out = ncol(imgmat)),
+                            y = seq(from = -100, to = 100, length.out = nrow(imgmat)))
+
+str(singrid)
+heatmap(singrid$Y, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+```
+
+```{r}
+fval <- 0.02
+theta <- pi/6
+
+mat1 <- sin(((singrid$X * cos(theta)) + (singrid$Y * sin(theta))) * (2 * pi * fval))
+
+heatmap(mat1, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+```
+
+```{r}
+# scale noise
+mat2 <- (mat1 - min(mat1)) / (max(mat1) - min(mat1))
+imgsin <- imgmat + mat2
+heatmap(imgsin, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+```
+
+```{r}
+svd <- svd(imgsin)
+S <- svd$d |> diag()
+U <- svd$u
+V <- svd$v
+Vt <- t(V)
+```
+
+```{r}
+heatmap(imgsin, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+heatmap(U, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+heatmap(S, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+heatmap(Vt, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+```
+
+```{r}
+# scree plot
+Sp <- (svd$d / sum(svd$d)) * 100
+plot(Sp, type = "b", xlab = "Component number", ylab = "Variance explained (%)")
+```
+
+```{r}
+for (i in 1:3) {
+    for (j in 1:4) {
+        layer <- outer(U[,i], Vt[j,]) * S[i,i]
+        (heatmap(layer, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1)))
+    }
+}
+```
+
+### Exercise 15-14.
+
+```{r}
+k = 1:nrow(imgsin)
+k <- k[-c(2,3)]
+recon <- U[,k] %*% S[k,k] %*% Vt[k,]
+sqerror <- (imgsin - recon)^2
+```
+
+```{r}
+heatmap(imgsin, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+heatmap(recon, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+heatmap(sqerror, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+```

@@ -1,0 +1,452 @@
+---
+title: "Chapter 12: Least Squares Applications"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+```
+
+## Regression
+
+```{r}
+dat1 <- read.csv("https://archive.ics.uci.edu/ml/machine-learning-databases/00560/SeoulBikeData.csv", fileEncoding="latin1")
+dat1$Date <- lubridate::dmy(dat1$Date)
+```
+
+```{r}
+plot(dat1$Date, dat1$Rented.Bike.Count)
+plot(dat1$Date, dat1$Rainfall.mm.)
+```
+
+```{r}
+dat1 |> 
+    select(where(is.numeric)) |> 
+    cor() |> 
+    corrplot::corrplot(method = "color", 
+                       addCoef.col = "brown",
+                       tl.pos = 'n', 
+                       type = 'lower')
+```
+
+```{r}
+cor.test(dat1$Dew.point.temperature..C., dat1$Temperature..C.)
+```
+
+```{r}
+
+dat1$SeasonsN <- if_else(dat1$Seasons == "Autumn" | dat1$Seasons == "Winter", 0, 1)
+```
+
+```{r}
+mat1 <- dat1 |>
+    select(Rainfall.mm., SeasonsN) |>
+    as.matrix()
+dat2 <- dat1 |>
+    select(Rainfall.mm., SeasonsN) |>
+    cbind(intercept = rep(1, nrow(mat1)))
+mat1 <- cbind(mat1, intercept = rep(1, nrow(mat1)))
+```
+
+```{r}
+dat2$row <- 1:nrow(dat2)
+```
+
+```{r}
+dat2 |>
+    pivot_longer(cols = c(everything(), -row), names_to = "vars") |>
+    group_by(vars) |>
+    mutate(value = value / max(value),
+           vars = factor(vars, levels = c("Rainfall.mm.", "SeasonsN", "intercept"))) |>
+    ggplot(aes(x = vars, y = row, fill = value)) +
+    geom_tile(alpha = 0.9, width = 0.95) +
+    scale_fill_gradient(low = "black", high = "white") +
+    theme_classic()
+```
+
+```{r}
+dat1 |>
+    mutate(SeasonsN = factor(SeasonsN, labels = c("Winter", "Summer"))) |>
+    ggplot(aes(x = Rainfall.mm., y = Rented.Bike.Count, shape = SeasonsN, color = SeasonsN)) +
+    geom_point(size = 2) +
+    theme_classic()
+```
+
+```{r}
+X <- mat1[,c(3,1,2)]
+y <- dat1$Rented.Bike.Count
+
+beta <- matlib::inv((t(X) %*% X)) %*% t(X) %*% y
+head(X)
+head(y)
+beta
+lm(y ~ X[,2] + X[,3])$coefficients
+```
+
+```{r}
+pred <- X %*% beta
+head(pred)
+```
+
+```{r}
+dat1 |>
+    mutate(pred = pred,
+           SeasonsN = factor(SeasonsN, labels = c("Winter", "Summer"))) |>
+    ggplot(aes(x = Rented.Bike.Count, y = pred, color = SeasonsN, shape = SeasonsN)) +
+    geom_point(size = 2) +
+    theme_classic()
+```
+
+```{r}
+mod1 <- lm(data = dat1, formula = Rented.Bike.Count ~ Rainfall.mm. + SeasonsN)
+summary(mod1)
+parameters::model_parameters(mod1)
+performance::check_normality(mod1)
+```
+
+## Polynomial Regression
+
+```{r}
+year       <- c(1534, 1737, 1803, 1928, 1960, 1975, 1987, 2023, 2057, 2100)
+doubleTime <- c(697,  594,  260,  125,   76,   47,   37,   48,   70,  109)
+
+dat1 <- data.frame(year,doubleTime)
+N <- length(year)
+
+plot(dat1, type = 'b')
+```
+
+```{r}
+X <- matrix(data = 0, nrow = N, ncol = 4)
+for (i in 0:3) {
+    X[,i+1] <- year^i
+}
+
+# beta1 <- solve(crossprod(X)) %*% t(X) %*% doubleTime
+beta2 <- lm.fit(X, doubleTime)$coefficients
+yhat <- X %*% beta2
+```
+
+```{r}
+ggplot() +
+    geom_point(aes(x = year, y = doubleTime)) +
+    geom_line(aes(x = year, y = doubleTime)) +
+    geom_point(aes(x = year, y = yhat), color = "grey") +
+    geom_line(aes(x = year, y = yhat), color = "grey") +
+    theme_classic()
+```
+
+## Code Exercises
+
+### Bike Rental Exercises
+
+```{r}
+dat1 <- read.csv("SeoulBikeData.csv", fileEncoding="latin1")
+dat1$Date <- lubridate::dmy(dat1$Date)
+dat1$SeasonsN <- if_else(dat1$Seasons == "Autumn" | dat1$Seasons == "Winter", 0, 1)
+```
+
+#### Exercise 12-1.
+
+Select only rainfall days
+
+```{r}
+dat2 <- dat1 |>
+    filter(Rainfall.mm. > 0)
+```
+
+```{r}
+mod1 <- lm(data = dat2, formula = Rented.Bike.Count ~ Rainfall.mm. + SeasonsN)
+summary(mod1)
+```
+
+Worse R2 but more realistic predictions.
+
+```{r}
+dat2 |>
+    mutate(SeasonsN = factor(SeasonsN, labels = c("Winter", "Summer"))) |>
+    ggplot(aes(x = Rainfall.mm., y = Rented.Bike.Count, shape = SeasonsN, color = SeasonsN)) +
+    geom_point(size = 2) +
+    theme_classic()
+```
+
+#### Exercise 12-2.
+
+```{r}
+X <- dat1 |>
+    select(Rainfall.mm., Temperature..C.) |>
+    mutate(intercept = 1) |>
+    as.matrix() |>
+    _[,c(3,1,2)]
+y <- dat1$Rented.Bike.Count
+
+beta <- solve(crossprod(X)) %*% crossprod(X, y)
+beta2 <- lm.fit(X, y)$coefficients
+pred <- X %*% beta
+```
+
+```{r}
+mod1 <- lm(data = dat1, formula = Rented.Bike.Count ~ Rainfall.mm. + Temperature..C.)
+r2 <- summary(mod1)$r.squared
+```
+
+```{r}
+dat1 |>
+    ggplot(aes(x = Rented.Bike.Count, y = pred)) +
+    geom_point(shape=21, fill="grey", color="black", size=2, alpha = 0.5) +
+    labs(title = sprintf("Model fit (R2): %0.3f", r2)) +
+    theme_classic()
+```
+
+### Multicollinearity Exercise
+
+#### Exercise 12-3.
+
+
+```{r}
+X2 <- dat1 |>
+    select(Rainfall.mm., Temperature..C.) |>
+    mutate(intercept = 1,
+           v4 = (0.4 * Temperature..C.) + (4 * Rainfall.mm.)) |>
+    as.matrix()
+
+y <- dat1$Rented.Bike.Count
+
+sprintf("Design matrix size: (%i, %i)", dim(X2)[1], dim(X2)[2])
+sprintf("Design matrix rank: %i", pracma::Rank(X2))
+print("Design matrix correlation matrix:")
+cor(X2)
+```
+
+
+```{r}
+beta2 <- pracma::pinv(t(X2) %*% X2) %*% t(X2) %*% y
+beta2 <- solve(crossprod(X2)) %*% crossprod(X2,y)
+beta2 <- lm.fit(X2, y2)$coefficients
+pred <- X2 %*% beta2
+```
+
+Unlike the book's python implementation, R gives errors. This is pointed out in the book and it seems up to the user to decide how to interpret. You can ignore the error by supplying a more lenient tolerance to the solve() function.
+
+### Regularization Exercise
+
+#### Exercise 12-4.
+
+```{r}
+X <- dat1 |>
+    select(Rainfall.mm., Temperature..C.) |>
+    mutate(intercept = 1,
+           v4 = (0.4 * Temperature..C.) + (4 * Rainfall.mm.)) |>
+    as.matrix()
+
+y <- dat1$Rented.Bike.Count
+
+id <- diag(ncol(X))
+
+gamma1 <- 0
+gamma2 <- 0.01
+```
+
+```{r}
+solve(crossprod(X) + gamma1 * id, tol = 1e-18) |> pracma::Rank()
+solve(crossprod(X) + gamma2 * id, tol = 1e-18) |> pracma::Rank()
+```
+
+```{r}
+beta <- solve(crossprod(X) + gamma1 * id, tol = 1e-18) %*% t(X) %*% y
+pred <- X %*% beta
+ssr <- sum((y - pred)^2)
+sst <- sum((y - mean(pred))^2)
+R2 <- ssr / sst
+R2
+```
+
+```{r}
+gammas <- seq(0, 0.2, 0.01)
+r2s <- rep(NA, length(gammas))
+
+for (i in 1:length(gammas)) {
+    beta <- solve(crossprod(X) + gammas[i] * norm(X, type = "F") * id, tol = 1e-18) %*% t(X) %*% y
+    pred <- X %*% beta
+    ssr <- sum((y - pred)^2)
+    sst <- sum((y - mean(pred))^2)
+    r2s[i] <- ssr / sst
+}
+```
+
+```{r}
+r2s |> plot()
+```
+
+### Polynomial Regression Exercise
+
+#### Exercise 12-5.
+
+```{r}
+year       <- c(1534, 1737, 1803, 1928, 1960, 1975, 1987, 2023, 2057, 2100)
+doubleTime <- c(697,  594,  260,  125,   76,   47,   37,   48,   70,  109)
+
+dat1 <- data.frame(year,doubleTime)
+N <- length(year)
+
+# plot(dat1, type = 'b')
+```
+
+```{r}
+n <- 10
+
+for (i in 1:n) {
+    npoly <- i
+    X <- matrix(data = 0, nrow = N, ncol = npoly)
+    
+    for (i in 0:npoly-1) {
+        X[,i+1] <- year^i
+    }
+
+    # beta1 <- solve(crossprod(X)) %*% t(X) %*% doubleTime
+    beta2 <- lm.fit(X, doubleTime, tol = 1e-40)$coefficients
+    yhat <- X %*% beta2
+    
+    (ggplot() +
+        geom_point(aes(x = year, y = doubleTime), size = 2) +
+        geom_line(aes(x = year, y = doubleTime), linewidth = 2) +
+        geom_point(aes(x = year, y = yhat), color = "grey", size = 1.2) +
+        geom_line(aes(x = year, y = yhat), color = "grey", linewidth = 1.2, linetype = "dashed") +
+        labs(title = sprintf("Order = %d", i)) +
+        theme_classic()) |>
+        plot()
+}
+
+```
+
+### Grid Search Exercises
+
+#### Exercise 12-6.
+
+```{r}
+nCourse <- c(13,4,12,3,14,13,12,9,11,7,13,11,9,2,5,7,10,0,9,7)
+happiness <- c(70,25,54,21,80,68,84,62,57,40,60,64,45,38,51,52,58,21,75,70)
+
+dmat <- matrix(c(rep(1,length(nCourse)), nCourse), nrow = length(nCourse))
+
+beta <- lm.fit(dmat, happiness)$coefficient
+```
+
+```{r}
+gridres <- 100
+
+intercepts <- seq(0, 80, length.out = gridres)
+slopes <- seq(0, 6, length.out = gridres)
+
+sses <- matrix(data = 0, nrow = gridres, ncol = gridres)
+```
+
+```{r}
+for (i in 1:gridres) {
+    for (j in 1:gridres) {
+        yhat <- dmat %*% c(intercepts[i], slopes[j])
+        sses[i,j] <- sum((yhat - happiness)^2)
+    }
+}
+```
+
+```{r}
+colnames(sses) <- slopes
+rownames(sses) <- intercepts
+df <- reshape2::melt(sses)
+colnames(df) <- c("y", "x", "value")
+```
+
+```{r}
+# find minimum
+rindex <- df$x[which(df$value == min(df$value), arr.ind = T)]
+cindex <- df$y[which(df$value == min(df$value), arr.ind = T)]
+```
+
+```{r}
+df |>
+    filter(value <= 3000, value >= 2000) |>
+    ggplot(aes(x = x, y = y, fill = value)) +
+    geom_raster() +
+    scale_fill_gradient(low = "black", high = "white") +
+    geom_point(x = rindex, y = cindex, color = "red", size = 5) +
+    geom_point(x = beta[2], y = beta[1], color = "skyblue", shape = 4, size = 5) +
+    expand_limits(x = c(0, 6), y = c(0,80)) +
+    coord_fixed(ratio = 0.08) +
+    theme_classic()
+```
+
+```{r}
+# analytic method
+beta
+
+# empirical method
+c(cindex, rindex)
+```
+
+#### Exercise 12-7.
+
+```{r}
+nCourse <- c(13,4,12,3,14,13,12,9,11,7,13,11,9,2,5,7,10,0,9,7)
+happiness <- c(70,25,54,21,80,68,84,62,57,40,60,64,45,38,51,52,58,21,75,70)
+
+dmat <- matrix(c(rep(1,length(nCourse)), nCourse), nrow = length(nCourse))
+
+beta <- lm.fit(dmat, happiness)$coefficient
+```
+
+```{r}
+gridres <- 100
+
+intercepts <- seq(0, 80, length.out = gridres)
+slopes <- seq(0, 6, length.out = gridres)
+
+r2 <- matrix(data = 0, nrow = gridres, ncol = gridres)
+```
+
+```{r}
+for (i in 1:gridres) {
+    for (j in 1:gridres) {
+        yhat <- dmat %*% c(intercepts[i], slopes[j])
+        ssr <- sum((happiness - yhat)^2)
+        sst <- sum((happiness - mean(yhat))^2)
+        r2[i,j] <- 1 - (ssr / sst)
+    }
+}
+```
+
+```{r}
+colnames(r2) <- slopes
+rownames(r2) <- intercepts
+df <- reshape2::melt(r2)
+colnames(df) <- c("y", "x", "value")
+```
+
+```{r}
+# find minimum
+rindex <- df$x[which(df$value == max(df$value), arr.ind = T)]
+cindex <- df$y[which(df$value == max(df$value), arr.ind = T)]
+```
+
+```{r}
+df |>
+    ggplot(aes(x = x, y = y, fill = value)) +
+    geom_raster() +
+    scale_fill_gradient(low = "white", high = "black") +
+    geom_point(x = rindex, y = cindex, color = "red", size = 5) +
+    geom_point(x = beta[2], y = beta[1], color = "skyblue", shape = 4, size = 5) +
+    expand_limits(x = c(0, 6), y = c(0,80)) +
+    coord_fixed(ratio = 6/80) +
+    theme_classic()
+```
+
+```{r}
+# analytic method
+beta
+
+# empirical method
+c(cindex, rindex)
+```

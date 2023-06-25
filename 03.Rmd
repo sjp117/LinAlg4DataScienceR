@@ -1,0 +1,142 @@
+---
+title: "Chapter 3: Vectors, Part 2"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+Linear Weighted Combination
+
+```{r}
+l1 <- 1
+l2 <- 2
+l3 <- -3
+v1 <- c(4,5,1)
+v2 <- c(-4,0,-4)
+v3 <- c(1,3,2)
+l1*v1 + l2*v2 + l3*v3
+```
+
+```{python}
+import numpy as np
+l1 = 1
+l2 = 2
+l3 = -3
+v1 = np.array([4,5,1])
+v2 = np.array([-4,0,-4])
+v3 = np.array([1,3,2])
+l1*v1 + l2*v2 + l3*v3
+```
+
+
+## Code Exercises
+
+Exercise 3-1.
+
+Rewrite the code for linear weighted combination, but put the scalars in a list and the
+vectors as elements in a list (thus, you will have two lists, one of scalars and one of
+NumPy arrays). Then use a for loop to implement the linear weighted combination
+operation. Initialize the output vector using np.zeros(). Confirm that you get the
+same result as in the previous code.
+
+```{r}
+v1 <- c(4,5,1)
+v2 <- c(-4,0,-4)
+v3 <- c(1,3,2)
+
+weights <- c(1,2,-3)
+
+vecs <- matrix(c(v1,v2,v3), nrow = 3)
+
+weights
+vecs
+
+lwc <- matrix(0,1,3)
+
+for (i in 1:ncol(vecs)) {
+    lwc <- lwc + (weights[i] * vecs[,i])
+}
+lwc
+```
+
+```{python}
+import numpy as np
+weights = [1,2,-3]
+
+v1 = np.array([4,5,1])
+v2 = np.array([-4,0,-4])
+v3 = np.array([1,3,2])
+
+vecs = np.array([v1,v2,v3]).T
+
+lwc = np.zeros(3)
+
+for i in range(vecs.shape[1]):
+    lwc += weights[i] * vecs[:,i]
+
+lwc
+```
+
+Exercise 3-3.
+
+```{r}
+vec <- c(1,3)
+n <- 100
+scalars <- runif(n = n, min = -4, max = 4)
+scalars
+
+m <- matrix(scalars[1] * vec, nrow = 1)
+
+for (i in 2:nrow(scalars)) {
+    m <- rbind(m, scalars[i] * vec)
+}
+```
+
+```{r}
+plot_ly(x = m[,1], y = m[,2])
+```
+
+repeat the procedure but using two vectors in R3.
+
+```{r}
+v1 <- c(3,5,1)
+v2 <- c(0,2,2)
+
+scalars <- matrix(data = runif(200, min = -4, max = 4), ncol = 2)
+
+p1 <- matrix(scalars[1,1] * v1, nrow = 1)
+p2 <- matrix(scalars[1,2] * v2, nrow = 1)
+
+for (i in 2:nrow(scalars)) {
+    p1 <- rbind(p1, scalars[i,1] * v1)
+    p2 <- rbind(p2, scalars[i,2] * v2)
+}
+
+p3 <- rbind(p1, p2)
+```
+
+```{r}
+plot_ly(x = p3[,1], y = p3[,2], z = p3[,3], type="scatter3d", mode = "markers")
+```
+
+repeat the R3 case but setting the second vector to be 1/2 times the first.
+
+```{r}
+v1 <- c(3,5,1)
+v2 <- 0.5 * v1
+
+scalars <- matrix(data = runif(200, min = -4, max = 4), ncol = 2)
+
+p1 <- matrix(scalars[1,1] * v1, nrow = 1)
+p2 <- matrix(scalars[1,2] * v2, nrow = 1)
+
+for (i in 2:nrow(scalars)) {
+    p1 <- rbind(p1, scalars[i,1] * v1)
+    p2 <- rbind(p2, scalars[i,2] * v2)
+}
+
+p3 <- rbind(p1, p2)
+```
+
+```{r}
+plot_ly(x = p3[,1], y = p3[,2], z = p3[,3], type="scatter3d", mode = "markers")
+```

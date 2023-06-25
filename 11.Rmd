@@ -1,0 +1,295 @@
+---
+title: "Chapter 11: General Linear Models and Least Squares"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r}
+library(Matrix)
+library(ggplot2)
+library(ggpubr)
+```
+
+
+```{r}
+dat1 <- data.frame(c = c(1,1,1,1),
+                   w = c(70,86,63,62),
+                   h = c(177,190,180,172),
+                   y = c(175,181,159,165))
+dat1
+```
+
+```{r}
+mat1 <- as.matrix(dat1)
+X <- mat1[,1:3]
+y <- mat1[,4]
+```
+
+## Solving GLMs
+
+```{r}
+inv((t(X) %*% X)) %*% t(X) %*% y
+```
+
+```{r}
+X2 <- X
+X2 <- cbind(X2, wh = X[,2] * X[,3])
+X2
+```
+
+```{r}
+beta <- inv((t(X) %*% X)) %*% t(X) %*% y
+beta
+```
+
+
+```{r}
+lm1 <- lm(data = dat1, y ~ w + h)
+summary(lm1)
+```
+
+### Residuals
+
+```{r}
+eta <- y - X %*% beta
+eta
+```
+
+## Code Exercises
+
+### Exercise 11-1.
+
+
+```{r}
+X <- iris$Sepal.Length |> as.matrix() |> cbind(iris$Petal.Length)
+X <- cbind(rep(1, nrow(X)), X)
+y <- iris$Sepal.Width
+head(X)
+head(y)
+```
+
+```{r}
+# coefficients
+beta <- inv((t(X) %*% X)) %*% t(X) %*% y
+beta
+```
+
+```{r}
+# residuals
+
+eta <- y - X %*% beta
+eta |> head()
+```
+
+```{r}
+pred <- X %*% beta
+```
+
+```{r}
+plot(eta, pred)
+```
+
+```{r}
+cor(eta, pred)
+dot(eta, pred)
+```
+
+#### book data
+
+```{r}
+nCourse <- c(13,4,12,3,14,13,12,9,11,7,13,11,9,2,5,7,10,0,9,7)
+happiness <- c(70,25,54,21,80,68,84,62,57,40,60,64,45,38,51,52,58,21,75,70)
+X <- matrix(data = nCourse, nrow = length(nCourse))
+X <- cbind(rep(1, nrow(X)), X)
+X |> head()
+
+y <- happiness
+y
+```
+
+```{r}
+# coefficients
+beta <- inv((t(X) %*% X)) %*% t(X) %*% y
+beta
+```
+
+```{r}
+# residuals
+eta <- y - X %*% beta
+eta |> head()
+```
+
+```{r}
+# predictions
+pred <- X %*% beta
+pred |> head()
+```
+
+```{r}
+data.frame(eta,pred) |>
+    ggplot(aes(x = eta, y = pred)) +
+    geom_point(size = 4) +
+    labs(x = "Residual error",
+         y = "Model-predicted values") +
+    ggtitle(sprintf("r = %0.20f", cor(eta, pred))) +
+    theme_pubr() +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    coord_fixed(ratio = .5)
+    
+```
+
+```{r}
+cor(eta, pred)
+dot(eta, pred)
+```
+
+
+### Exercise 11-3.
+
+```{r}
+# QR
+
+qr <- qr(X)
+Q <- qr.Q(qr)
+R <- qr.R(qr)
+Q |> head()
+R
+```
+
+```{r}
+# coefficients from QR
+inv(R) %*% t(Q) %*% y
+```
+
+```{r}
+# Gauss-Jordan elimination
+
+matlib::gaussianElimination(R, t(Q) %*% y)
+```
+
+```{r}
+R
+cbind(R, t(Q) %*% y)
+matlib::gaussianElimination(R, t(Q) %*% y)
+```
+
+### Exercise 11-4.
+
+```{r}
+nCourse <- c(13,4,12,3,14,13,12,9,11,7,13,11,9,2,5,7,10,0,9,7)
+happiness <- c(170,25,54,21,80,68,84,62,57,40,60,64,45,38,51,52,58,21,75,70)
+X <- matrix(data = nCourse, nrow = length(nCourse))
+X <- cbind(rep(1, nrow(X)), X)
+
+y1 <- c(70,25,54,21,80,68,84,62,57,40,60,64,45,38,51,52,58,21,75,70)
+y2 <- c(170,25,54,21,80,68,84,62,57,40,60,64,45,38,51,52,58,21,75,70)
+y3 <- c(70,25,54,21,80,68,84,62,57,40,60,64,45,38,51,52,58,21,75,170)
+```
+
+```{r}
+# coefficients
+beta1 <- inv((t(X) %*% X)) %*% t(X) %*% y1
+beta2 <- inv((t(X) %*% X)) %*% t(X) %*% y2
+beta3 <- inv((t(X) %*% X)) %*% t(X) %*% y3
+```
+
+```{r}
+# residuals
+eta1 <- y1 - X %*% beta1
+eta2 <- y2 - X %*% beta2
+eta3 <- y3 - X %*% beta3
+```
+
+```{r}
+# model prediction
+pred1 <- X %*% beta1
+pred2 <- X %*% beta2
+pred3 <- X %*% beta3
+```
+
+```{r}
+# SSE
+sse1 <- eta1^2 |> sum()
+sse2 <- eta2^2 |> sum()
+sse3 <- eta3^2 |> sum()
+```
+
+
+```{r}
+data.frame(nCourse, y1, pred1) |>
+    ggplot(aes(x = nCourse, y = y1)) +
+    geom_point(size = 4, shape = "square") +
+    geom_point(aes(y = pred1), size = 3) +
+    geom_segment(aes(x = nCourse, y = y1, xend = nCourse, yend = pred1),
+                 linetype = "dashed") +
+    geom_line(aes(y = pred1)) +
+    # geom_smooth(method = "lm", se = F) +
+    labs(x = "Number of courses taken",
+         y = "General life happiness",
+         title = sprintf("SSE = %0.2f", sse1)) +
+    theme_pubr() +
+    theme(plot.title = element_text(hjust = 0.5))
+
+data.frame(nCourse, y2, pred2) |>
+    ggplot(aes(x = nCourse, y = y2)) +
+    geom_point(size = 4, shape = "square") +
+    geom_point(aes(y = pred2), size = 3) +
+    geom_segment(aes(x = nCourse, y = y2, xend = nCourse, yend = pred2),
+                 linetype = "dashed") +
+    geom_line(aes(y = pred2)) +
+    # geom_smooth(method = "lm", se = F) +
+    labs(x = "Number of courses taken",
+         y = "General life happiness",
+         title = sprintf("SSE = %0.2f", sse2)) +
+    theme_pubr() +
+    theme(plot.title = element_text(hjust = 0.5))
+
+data.frame(nCourse, y3, pred3) |>
+    ggplot(aes(x = nCourse, y = y3)) +
+    geom_point(size = 4, shape = "square") +
+    geom_point(aes(y = pred3), size = 3) +
+    geom_segment(aes(x = nCourse, y = y3, xend = nCourse, yend = pred3),
+                 linetype = "dashed") +
+    geom_line(aes(y = pred3)) +
+    # geom_smooth(method = "lm", se = F) +
+    labs(x = "Number of courses taken",
+         y = "General life happiness",
+         title = sprintf("SSE = %0.2f", sse3)) +
+    theme_pubr() +
+    theme(plot.title = element_text(hjust = 0.5))
+    
+```
+
+Exercise 11-5.
+
+```{r}
+n <- 5
+X <- matrix(data = rnorm(n*n), nrow = n)
+Y <- diag(n)
+B1 <- matrix(data = NA, nrow = n, ncol = n)
+```
+
+```{r}
+for (i in 1:nrow(X)) {
+    B1[,i] <- inv((t(X) %*% X)) %*% t(X) %*% Y[,i]
+}
+B1
+```
+
+```{r}
+B2 <- inv(t(X) %*% X) %*% t(X) %*% Y
+B2
+```
+
+
+```{r}
+B3 <- inv(X)
+B3
+```
+
+```{r}
+heatmap(B1 %*% X, Rowv = NA, Colv = NA, scale = "none")
+heatmap(B2 %*% X, Rowv = NA, Colv = NA, scale = "none")
+heatmap(B3 %*% X, Rowv = NA, Colv = NA, scale = "none")
+```
+

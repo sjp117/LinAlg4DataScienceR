@@ -1,0 +1,483 @@
+---
+title: "Chapter 13: Eigendecomposition"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+```
+
+An eigenvector means that matrix-vector multiplication acts like scalar-vector multiplication.
+
+## Finding Eigenvalues/vectors
+
+eigenvalues are like keys that you insert into the matrix to unlock the mystical eigenvector.
+
+```{r}
+mat1 <- matrix(data = c(1,3,2,4), nrow = 2)
+eigen(mat1)
+```
+
+```{python}
+import numpy as np
+
+mat1 = np.array([[1,2], [3,4]])
+
+np.linalg.eig(mat1)[0]
+np.linalg.eig(mat1)[1]
+```
+
+```{r}
+matrix(c(1,2,2,1), nrow = 2) - diag(x = 3, 2)
+matrix(c(-2,2,2,-2), nrow = 2) %*% c(1,1)
+```
+
+```{r}
+matrix(c(1,2,2,1), nrow = 2) - diag(x = -1, 2)
+matrix(c(-2,2,2,-2), nrow = 2) %*% c(1,1)
+```
+
+
+## The Special Awesomeness of Symmetric Matrices
+
+### Orthogonal Eigenvectors
+
+All eigenvectors of a symmetric matrix are pair-wise orthogonal.
+
+```{r}
+# random symmetric matrix
+A <- matrix(data = sample(-3:4, 9, replace = T), nrow = 3)
+A <- t(A) %*% A
+
+# its eigendecomposisiton
+L <- eigen(A)$values
+V <- eigen(A)$vectors
+
+# all pairwise dot products
+V[,1] %*% V[,2] |> round(15)
+V[,1] %*% V[,3] |> round(15)
+V[,2] %*% V[,3] |> round(15)
+
+```
+
+### Real-Valued Eigenvalues
+
+A second special property of symmetric matrices is that they have real-valued eigenvalues (and therefore real-valued eigenvectors).
+
+```{r}
+A <- matrix(data = c(-3,3,0,-3,-2,1,0,3,2), nrow = 3)
+L <- eigen(A)$values
+V <- eigen(A)$vectors
+
+L
+```
+
+```{r}
+A <- matrix(data = c(-3,-3,0,-3,-2,1,0,1,2), nrow = 3)
+L <- eigen(A)$values
+V <- eigen(A)$vectors
+
+L
+```
+
+## Eigendecomposition of Singular Matrices
+
+```{r}
+A <- matrix(data = 1:9, nrow = 3)
+L <- eigen(A)$values
+V <- eigen(A)$vectors
+
+pracma::Rank(A)
+L |> round(2)
+V |> round(2)
+```
+
+## Generalized Eigendecomposition (GED)
+
+```{r}
+A <- matrix(data = rnorm(16), nrow = 4)
+A <- A %*% t(A)
+
+B <- matrix(data = rnorm(16), nrow = 4)
+B <- B %*% t(B) + A/10
+A
+B
+
+C <- A %*% solve(B)
+
+# GED
+eigen(A, symmetric = T)$vectors
+eigen(B, symmetric = T)$ vectors
+
+geigen::geigen(A,B)
+```
+
+## Code Exercises
+
+### Exercise 13-1.
+
+```{r}
+A <- matrix(data = rnorm(5*5), nrow = 5)
+Ainv <- solve(A)
+
+# eigenvectors of A == A inverse
+eigen(A)$vectors
+eigen(Ainv)$vectors[,5:1]
+
+# eigenvalues of A == A inverse^-1
+eigen(A)$values
+eigen(Ainv)$values^-1 |> rev()
+
+# eigenvalues of A^-1 == A inverse
+eigen(A)$values^-1
+eigen(Ainv)$values |> rev()
+```
+
+### Exercise 13-2.
+
+```{r}
+V1 <- c(-0.9,-0.4)
+V2 <- c(-0.4, -0.9)
+
+```
+
+```{r}
+vmat <- cbind(V1,V2)
+egn <- eigen(vmat)
+egn
+
+V1 %*% egn$vectors
+```
+
+
+```{r}
+plot(x = c(-1.5,1.5), y = c(-1.5,1.5), type="n", xlab="X", ylab="Y")
+abline(v=0, h=0, col="gray")
+matlib::vectors(rbind(V1,V2), col=c("black", "red"))
+```
+
+### Exercise 13-3.
+
+```{r}
+# additive method for symm matrix
+addSym <- function(mat) {
+    output <- (mat + t(mat)) / 2
+}
+```
+
+```{r}
+swapLargest2 <- function(vec) {
+    temp <- unique(vec)
+    temp <- sort(temp, decreasing = T)[1:2]
+    first <- which(vec == temp[1])
+    second <- which(vec == temp[2])
+    vec[first] <- temp[2]
+    vec[second] <- temp[1]
+    return(vec)
+}
+
+swapSmallest2 <- function(vec) {
+    temp <- unique(vec)
+    temp <- sort(temp, decreasing = F)[1:2]
+    first <- which(vec == temp[1])
+    second <- which(vec == temp[2])
+    vec[first] <- temp[2]
+    vec[second] <- temp[1]
+    return(vec)
+}
+```
+
+```{r}
+temp <- sample(-10:10, 5, replace = T)
+temp
+swapLargest2(temp)
+swapSmallest2(temp)
+```
+
+```{r}
+A <- matrix(data = rnorm(5*5), nrow = 5)
+A <- addSym(A)
+A
+Aeval <- eigen(A)$values
+reval <- sample(Aeval, 5)
+reval
+```
+
+```{r}
+# reconstruct the original matrix as VAV^-1
+
+eigdag <- diag(eigen(A)$values)
+eigvec <- eigen(A)$vectors
+
+mat0 <- eigvec %*% eigdag %*% solve(eigvec) 
+A
+(A - mat0) |> norm(type = "F")
+```
+
+```{r}
+# attempt to reconstruct the matrix using shuffled eigen values
+eigdag <- diag(reval)
+eigvec <- eigen(A)$vectors
+
+mat1 <- eigvec %*% eigdag %*% solve(eigvec)
+mat1
+A
+(A - mat1) |> norm(type = "F")
+```
+
+```{r}
+# What happens if you only swap the two largest eigenvalues instead of randomly reordering them?
+reval2 <- swapLargest2(Aeval)
+eigdag <- diag(reval2)
+eigvec <- eigen(A)$vectors
+
+mat2 <- eigvec %*% eigdag %*% solve(eigvec) 
+mat2
+A
+(A - mat2) |> norm(type = "F")
+```
+
+```{r}
+# What happens if you only swap the two smallest eigenvalues instead of randomly reordering them?
+reval3 <- swapSmallest2(Aeval)
+eigdag <- diag(reval3)
+eigvec <- eigen(A)$vectors
+
+mat3 <- eigvec %*% eigdag %*% solve(eigvec) 
+mat3
+A
+(A - mat3) |> norm(type = "F")
+```
+
+```{r}
+dists <- c((A - mat0) |> norm(type = "F"),(A - mat1) |> norm(type = "F"),(A - mat2) |> norm(type = "F"),(A - mat3) |> norm(type = "F"))
+
+types <- c("None", "All", "Largest two", "Smallest two")
+
+df <- data.frame(types, dists)
+```
+
+```{r}
+df |>
+    mutate(types = factor(types, levels = c("None", "All", "Largest two", "Smallest two"))) |>
+    ggplot(aes(x = types, y = dists)) +
+    geom_col()
+```
+
+### Exercise 13-4.
+
+compute 123 random 42 × 42 matrices, extract their eigenvalues, 
+divide by the square root of the matrix size (42), plot the eigenvalues on the
+complex plane.
+
+#### Using torch
+
+```{r}
+library(torch)
+
+x <- torch_randn(c(42,42,123))
+```
+
+```{r}
+eigvals <- c()
+index <- 1
+for (i in 1:dim(x)[3]) {
+    vals <- eigen(x[,,i])$values
+    valsdiv <- vals / sqrt(42)
+    eigvals <- append(eigvals, valsdiv)
+}
+```
+
+```{r}
+plot(eigvals, asp = 1)
+```
+
+#### Using base R
+
+```{r}
+dims <- c(42,42,123)
+x <- array(data = rnorm(42*42*123), dim = dims)
+
+eigvals <- c()
+index <- 1
+for (i in 1:dim(x)[3]) {
+    vals <- eigen(x[,,i])$values
+    valsdiv <- vals / sqrt(42)
+    eigvals <- append(eigvals, valsdiv)
+}
+
+plot(eigvals, asp = 1)
+```
+
+### Exercise 13-5.
+
+```{r}
+x <- matrix(data = rnorm(9), nrow = 3)
+symx <- t(x) %*% x
+eigx <- eigen(symx)
+
+for (i in 1:3) {
+    nullV <- svd(symx - eigx$values[i] * diag(3))$d
+    r <- cor(nullV, eigx$vectors[i,])
+    sprintf("Correlation between N(A-lI) and evec %d: %0.2f", i, abs(r)) |> print()
+}
+
+```
+
+```{python}
+import numpy as np
+from scipy.linalg import null_space
+
+# Create a symmetric matrix
+N = 3
+A = np.random.randn(N,N)
+A = A @ A.T
+
+# eigendecompose
+evals,evecs = np.linalg.eig(A)
+
+# compare the eigenvectors with N(A-lI)
+for i in range(N):
+
+  # get the null space vector of the shifted matrix
+  nullV = null_space( A-evals[i]*np.eye(N) )
+
+  # check for a match with the eigenvector via correlation (normalizes for magnitudes)
+  r = np.corrcoef(nullV.T,evecs[[i],:])[0,1]
+
+  # and print (abs(r))
+  print(f'Correlation between N(A-lI) and evec {i}: {np.abs(r):.2f}')
+
+```
+
+### Exercise 13-6.
+
+```{r}
+randmat <- diag(1:4)
+
+qmat <- matrix(data = rnorm(4*4), nrow = 4) |> qr() |> qr.Q()
+
+qmat %*% randmat %*% t(qmat)
+```
+
+### Exercise 13-7.
+
+```{r}
+dat1 <- read.csv("SeoulBikeData.csv", fileEncoding="latin1")
+dat1$Date <- lubridate::dmy(dat1$Date)
+```
+
+```{r}
+X <- dat1 |>
+    select(Rainfall.mm., Temperature..C.) |>
+    mutate(intercept = 1,
+           v4 = (0.4 * Temperature..C.) + (4 * Rainfall.mm.)) |>
+    as.matrix()
+
+y <- dat1$Rented.Bike.Count
+
+id <- diag(ncol(X))
+
+gamma1 <- 0
+gamma2 <- 0.01
+```
+
+```{r}
+solve(crossprod(X) + gamma1 * id, tol = 1e-18) |> pracma::Rank()
+solve(crossprod(X) + gamma2 * id, tol = 1e-18) |> pracma::Rank()
+```
+
+```{r}
+beta <- solve(crossprod(X) + gamma1 * mean(eigen(t(X) %*% X)$values) * id, tol = 1e-18) %*% t(X) %*% y
+pred <- X %*% beta
+ssr <- sum((y - pred)^2)
+sst <- sum((y - mean(pred))^2)
+R2 <- ssr / sst
+R2
+```
+
+```{r}
+gammas <- seq(0, 0.2, 0.01)
+r2s <- rep(NA, length(gammas))
+
+for (i in 1:length(gammas)) {
+    beta <- solve(crossprod(X) + gammas[i] * mean(eigen(t(X) %*% X)$values) * id, tol = 1e-18) %*% t(X) %*% y
+    pred <- X %*% beta
+    ssr <- sum((y - pred)^2)
+    sst <- sum((y - mean(pred))^2)
+    r2s[i] <- ssr / sst
+}
+```
+
+```{r}
+r2s |> plot()
+```
+
+### Exercise 13-8.
+
+```{r}
+X <- matrix(data = rnorm(3*10000), nrow = 3)
+cormat <- matrix(data = c(1,.2,.9,.2,1,.3,.9,.3,1), ncol = 3)
+
+eigcor <- eigen(cormat)
+VA <- eigcor$vectors %*% sqrt(diag(eigcor$values))
+
+Y <- VA %*% X
+
+cormat2 <- cor(t(Y))
+cormat2 |> round(1)
+cormat
+```
+
+### Exercise 13-9.
+
+```{r}
+t(Y) %*% VA |> cor() |> round(1)
+```
+
+### Exercise 13-10
+
+```{r}
+n = 5
+mat1 <- matrix(data = rnorm(n^2), nrow = n)
+mat2 <- matrix(data = rnorm(n^2), nrow = n)
+A <- t(mat1) %*% mat1
+B <- t(mat2) %*% mat2
+eigvecs <- geigen::geigen(A, B)$vectors
+```
+
+```{r}
+# eigenvectors times their transposes
+VV <- t(eigvecs) %*% eigvecs
+VV
+
+VBV <- t(eigvecs) %*% B %*% eigvecs
+VBV |> round(14)
+```
+
+```{r}
+heatmap(VV, Rowv = NA, Colv = NA, scale = "none")
+heatmap(VBV, Rowv = NA, Colv = NA, scale = "none")
+```
+
+### Exercise 13-11.
+
+```{r}
+mat1 <- matrix(data = sample(-14:14, 4*4, replace = T), nrow = 4)
+mat1
+```
+
+```{r}
+eigmat <- eigen(mat1)
+V <- eigmat$vectors * pi
+D <- diag(eigmat$values)
+Vi <- solve(eigmat$vectors)
+
+A <- eigmat$vectors %*% D %*% Vi
+Re(A)
+mat1
+```
+

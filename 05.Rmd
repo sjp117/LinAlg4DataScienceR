@@ -1,0 +1,185 @@
+---
+title: "Chapter 5: Matrices, Part 1"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r}
+library(ggplot2)
+library(plotly)
+```
+
+
+Exercise 5-1.
+
+```{r}
+mat <- matrix(data = rnorm(12), nrow = 3)
+mat
+mat[2,4]
+```
+
+Exercise 5-2.
+
+```{r}
+C <- matrix(data = 0:99, nrow = 10) |> t()
+C
+c1 <- C[1:5,1:5]
+c1
+```
+
+Exercise 5-3.
+
+```{r}
+c2 <- C[1:5,6:10]
+c3 <- C[6:10,1:5]
+c4 <- C[6:10,6:10]
+c1
+c2
+c3
+c4
+```
+
+```{r}
+rbind(cbind(c4,c3),cbind(c2,c1))
+```
+
+Exercise 5-4.
+
+```{r}
+for (i in nrow(C)) {
+    for (j in ncol(C)){
+        out <- C[i,j] + C[i,j]
+    }
+}
+```
+
+Exercise 5-5.
+
+```{r}
+m1 <- matrix(data = rnorm(12), nrow = 3)
+m2 <- matrix(data = rnorm(12), nrow = 3)
+s <- 3
+```
+
+```{r}
+s*(m1 + m2)
+s*m1 + s*m2
+m1*s + m2*s
+```
+
+Exercise 5-7.
+
+```{r}
+m1 <- matrix(data = rnorm(12), nrow = 2)
+m2 <- matrix(data = rnorm(18), nrow = 6)
+m3 <- matrix(data = rnorm(15), nrow = 3)
+m4 <- matrix(data = rnorm(10), nrow = 5)
+```
+
+```{r}
+m1%*%m2%*%m3%*%m4 |> t()
+```
+
+```{r}
+t(m1)%*%t(m2)%*%t(m3)%*%t(m4)
+```
+
+```{r}
+t(m4)%*%t(m3)%*%t(m2)%*%t(m1)
+```
+
+```{r}
+m1 <- matrix(data = rnorm(16), nrow = 4)
+m2 <- matrix(data = rnorm(16), nrow = 4)
+m3 <- matrix(data = rnorm(16), nrow = 4)
+m4 <- matrix(data = rnorm(16), nrow = 4)
+
+m1%*%m2%*%m3%*%m4 |> t()
+t(m1)%*%t(m2)%*%t(m3)%*%t(m4)
+t(m4)%*%t(m3)%*%t(m2)%*%t(m1)
+```
+
+Exercise 5-8.
+
+```{r}
+
+isSym <- function(mat) {
+    if (dim(mat)[1] != dim(mat)[2]) {
+        return(FALSE)
+    }
+    if (sum(t(mat) == mat) == length(mat)) {
+        return(TRUE)
+    }
+    else return(FALSE)
+}
+
+isSym(m1)
+isSym(sm)
+
+```
+
+Exercise 5-9.
+
+```{r}
+# additive method for symm matrix
+addSym <- function(mat) {
+    output <- (mat + t(mat)) / 2
+}
+```
+
+```{r}
+sm <- addSym(m1)
+
+isSym(sm)
+```
+
+Exercise 5-10.
+
+```{r}
+v1 <- c(3,5,1)
+v2 <- c(0,2,2)
+
+A <- matrix(data = c(v1,v2), ncol = 2)
+
+scalars <- matrix(data = runif(200, min = -4, max = 4), ncol = 2)
+
+p1 <- matrix(scalars[1,1] * v1, nrow = 1)
+p2 <- matrix(scalars[1,2] * v2, nrow = 1)
+
+for (i in 2:nrow(scalars)) {
+    p1 <- rbind(p1, scalars[i,1] * v1)
+    p2 <- rbind(p2, scalars[i,2] * v2)
+}
+
+p3 <- rbind(p1, p2)
+```
+
+```{r}
+plot_ly(x = p3[,1], y = p3[,2], z = p3[,3], type="scatter3d", mode = "markers")
+```
+
+Exercise 5-11.
+
+```{r}
+m1 <- matrix(1, nrow = 4, ncol = 4)
+m2 <- diag(x = c(1,4,9,16))
+m3 <- sqrt(m2)
+```
+
+```{r}
+# pre multiply scales the rows of the right matrix
+m2 %*% m1
+
+# post multiply scales the columns of the left matrix
+m1 %*% m2
+```
+
+```{r}
+# Pre- and post-multiply by sqrt-diagonal:
+m3 %*% m1 %*% m3
+```
+
+
+
+
+

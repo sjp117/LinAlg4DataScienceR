@@ -1,0 +1,281 @@
+---
+title: "Chapter 14: Singular Value Decomposition"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r}
+library(OpenImageR)
+```
+
+
+## SVD in program
+
+```{python}
+import numpy as np
+
+A = np.random.randn(3,5)
+U,s,Vt = np.linalg.svd(A)
+S = np.zeros(np.shape(A))
+np.fill_diagonal(S,s)
+A
+S
+Vt
+```
+
+```{r}
+A <- matrix(data = rnorm(3*5), nrow = 3)
+svd(A)
+diag(svd(A)$d, ncol = ncol(A), nrow = nrow(A))
+svd(A)$v |> t()
+```
+
+```{r}
+# eigen vectors of AAt are the left singular vectors of A
+A <- matrix(data = rnorm(3*4), nrow = 3)
+AAt <- A %*% t(A)
+eigen(AAt)$vectors
+svd(A)$u
+```
+
+```{r}
+# right-singular values come from premultiplying the matrix transpose
+AtA <- t(A) %*% A
+eigen(AtA)$vectors
+svd(A)
+```
+
+## Code Exercises
+
+### Exercise 14-1.
+
+```{r}
+A <- matrix(data = rnorm(5*5), nrow = 5)
+A <- t(A) %*% A
+```
+
+```{r}
+# for a symmetric matrix, the singular values and the eigenvalues are the same
+svd(A)$d
+eigen(A)$value
+```
+
+```{r}
+# How about the singular vectors and eigenvectors?
+svd(A)$u
+svd(A)$v
+eigen(A)$vectors
+```
+
+```{r}
+A <- matrix(data = rnorm(5*5), nrow = 5)
+A <- t(A) + A
+isSymmetric(A)
+```
+
+```{r}
+# for a symmetric matrix, the singular values and the eigenvalues are the same
+svd(A)$d
+eigen(A)$value
+```
+
+```{r}
+# How about the singular vectors and eigenvectors?
+svd(A)$u
+svd(A)$v
+eigen(A)$vectors
+```
+
+### Exercise 14-2
+
+```{python}
+import numpy as np
+
+A = np.random.randn(5,5)
+A = A.T @ A
+
+U,s,Vt = np.linalg.svd(A)
+
+econ = U @ np.diag(s) @ Vt
+
+econ
+```
+
+### Exercise 14-3.
+
+```{r}
+A <- matrix(data = rnorm(5*5), nrow = 5)
+# A <- t(A) %*% A
+
+U <- svd(A)$u
+w <- matrix(data = rnorm(5))
+Uw <- U %*% w
+
+norm(w, type = "F")
+norm(Uw, type = "F")
+```
+
+### Exercise 14-4.
+
+```{r}
+A <- matrix(data = rpois(10*3, lambda = c(10, 100)), nrow = 10)
+K <- max(svd(A)$d) / min(svd(A)$d)
+K
+```
+
+```{r}
+cond <- 42
+m <- 10
+n <- 6
+S <- seq(from = cond, to = 1, length.out = 6) |> diag(nrow = m, ncol = n)
+max(svd(S)$d) / min(svd(S)$d)
+
+U <- matrix(data = rnorm(m*m), nrow = m)
+U <- qr(U) |> qr.Q()
+max(svd(U)$d) / min(svd(U)$d)
+
+Vt <- matrix(data = rnorm(n*n), nrow = n)
+Vt <- qr(Vt) |> qr.Q()
+max(svd(Vt)$d) / min(svd(Vt)$d)
+
+A <- U %*% S %*% Vt
+max(svd(A)$d) / min(svd(A)$d)
+```
+
+```{r}
+heatmap(A, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(100, start=0, end=1))
+heatmap(U, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(100, start=0, end=1))
+heatmap(S, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(100, start=0, end=1))
+heatmap(Vt, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(100, start=0, end=1))
+```
+
+### Exercise 14-5.
+
+```{r}
+m <- 40
+n <- 30
+
+k <- ((m + n) / 4) |> as.integer()
+mg <- pracma::meshgrid(x = seq(from = -3, to = 3, length.out = k),
+                       y = seq(from = -3, to = 3, length.out = k))
+X <- mg$X
+Y <- mg$Y
+
+g2d <- exp(-(X^2 + Y^2) / (k/8))
+
+a <- matrix(data = rnorm(40*30), nrow = 40)
+A <- convolution(a, g2d, mode = "same")
+
+heatmap(a, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+heatmap(A, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+```
+
+```{r}
+svd <- svd(A)
+S <- svd$d |> diag(nrow = nrow(A), ncol = ncol(A))
+U <- svd$u
+V <- svd$v
+Vt <- t(V)
+```
+
+```{r}
+heatmap(A, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+heatmap(U, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+heatmap(S, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+heatmap(Vt, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+```
+
+```{r}
+# scree plot
+Sp <- (svd$d / sum(svd$d)) * 100
+plot(Sp, type = "b", xlab = "Component number", ylab = "Variance explained (%)")
+```
+
+```{r}
+L1 <- outer(U[,1], Vt[1,]) * S[1,1]
+L2 <- outer(U[,2], Vt[2,]) * S[2,2]
+L1 <- outer(U[,1], Vt[1,]) * S[1,1]
+L1 <- outer(U[,1], Vt[1,]) * S[1,1]
+heatmap(L1, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1))
+```
+
+```{r}
+for (i in 1:4) {
+    for (j in 1:4) {
+        layer <- outer(U[,i], Vt[j,]) * S[i,i]
+        (heatmap(layer, Rowv = NA, Colv = NA, scale = "none", asp = 1, col = grey.colors(256, start=0, end=1)))
+    }
+}
+```
+
+### Exercise 14-6.
+
+```{r}
+# Non full rank matrix
+mat1 <- matrix(data = rnorm(3*5), nrow = 3)
+mat2 <- matrix(data = rnorm(3*5), nrow = 3)
+A <- t(mat1) %*% mat2
+pracma::Rank(A)
+dim(A)
+```
+
+```{r}
+# my implementation of pseudoinverse
+
+mypinv <- function (mat, threshold = 1e-15) {
+    if (!is.matrix(mat)) {
+        stop("Input must be a matrix")
+    }
+    tsvd <- svd(mat)
+    S <- tsvd$d
+    S[S < threshold] <- 0
+    S[S > 0] <- 1 / S[S > 0]
+    S <- diag(S)
+    V <- tsvd$v
+    Ut <- tsvd$u |> t()
+    return(V %*% S %*% Ut)
+}
+```
+
+```{r}
+# for non full rank matrix
+mypinv(A)
+pracma::pinv(A)
+MASS::ginv(A)
+solve(A) # singular ERROR
+```
+
+### Exercise 14-7.
+
+```{r}
+# full rank matrix
+A <- matrix(data = rnorm(5*5), nrow = 5)
+leftInvA <- solve(crossprod(A)) %*% t(A)
+leftInvA
+mypinv(A)
+```
+
+### Example 14-8.
+
+```{r}
+A <- matrix(data = c(1,3,2,4), nrow = 2)
+v <- eigen(A)$vectors
+l <- eigen(A)$values
+```
+
+```{r}
+mypinv(v)
+v %*% mypinv(v) |> round(14)
+```
+
+
+```{r}
+mypinv(v) %*% A %*% v |> round(14)
+diag(l) %*% mypinv(v) %*% v |> round(14)
+```
+
+```{r}
+A %*% v %*% mypinv(v) |> round(14)
+diag(l) %*% v %*% mypinv(v) |> round(14)
+```
+

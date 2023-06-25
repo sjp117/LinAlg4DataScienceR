@@ -1,0 +1,258 @@
+---
+title: "Chapter 8: Matrix Inverse"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+## Computing the inverse
+
+```{r}
+A <- matrix(data = c(1,4,2,7), nrow = 2)
+Ainv <- solve(A)
+A %*% Ainv
+pracma::inv()
+```
+
+```{r}
+A <- matrix(data = c(1,2,4,8), nrow = 2)
+Ainv <- solve(A)
+A %*% Ainv
+```
+
+### Inverting Any Square Full-Rank Matrix
+
+```{r}
+minormat <- function(mat) {
+    outmat <- matrix(data = NA, nrow = nrow(mat), ncol = ncol(mat))
+    for (i in 1:nrow(mat)) {
+        for (j in 1:ncol(mat)) {
+            submat <- mat[-i,-j]
+            det <- determinant(submat, logarithm = F)
+            det <- det$modulus[1] * det$sign
+            outmat[i,j] <- det
+        }
+    }
+    return(outmat)
+}
+```
+
+```{r}
+gridmat <- function(mat) {
+    outmat <- matrix(data = NA, nrow = nrow(mat), ncol = ncol(mat))
+    for (i in 1:nrow(mat)) {
+        for (j in 1:ncol(mat)) {
+            outmat[i,j] <- (-1)^(i+j)
+        }
+    }
+    return(outmat)
+}
+```
+
+```{r}
+cofactorsmat <- function(mat) {
+    outmat <- minormat(mat) * gridmat(mat)
+    return(outmat)
+}
+```
+
+```{r}
+adjugatemat <- function(mat) {
+    tcof <- cofactorsmat(mat) |> t()
+    det <- determinant(mat, logarithm = F)
+    det <- det$modulus[1] * det$sign
+    print(det)
+    invdet <- 1 / det
+    outmat <- invdet * tcof
+    return(outmat)
+}
+```
+
+```{r}
+inverseAnySquare <- function(mat) {
+    outmat <- adjugatemat(mat)
+    return(outmat)
+}
+```
+
+```{r}
+test <- matrix(data = rnorm(9), nrow = 3)
+minormat(test)
+gridmat(test)
+cofactorsmat(test)
+adjugatemat(test) %*% test
+solve(test) %*% test
+```
+
+### One-Sided Inverses
+
+#### Left inverse
+
+```{r}
+tallmat <- matrix(data = sample(-10:11, size = 40*4, replace = T), ncol = 4)
+
+leftinv <- function(tallmat) {
+    TtT <- t(tallmat) %*% tallmat
+    linv <- solve(TtT)
+    out <- list(left_inv = linv, square_mat = TtT)
+    return(out)
+}
+
+linv <- leftinv(tallmat)
+linv
+# linv %*% tallmat
+```
+
+#### Right inverse
+
+```{r}
+widemat <- matrix(data = sample(-10:11, size = 40*4, replace = T), ncol = 40)
+
+rightinv <- function(widemat) {
+    WWt <- widemat %*% t(widemat)
+    WWt_inv <- solve(WWt)
+    rinv <- t(widemat) %*% WWt_inv
+    out <- list(right_inv = rinv, square_mat = WWt)
+    return(out)
+}
+
+rinv <- rightinv(widemat)
+widemat %*% rinv$right_inv
+```
+
+### Moore-Penrose Psudoinverse
+
+```{r}
+A <- matrix(data = c(1,2,4,8), nrow = 2)
+Apinv <- MASS::ginv(A)
+Apinv <- pracma::pinv(A)
+A %*% Apinv
+```
+
+```{python}
+import numpy as np
+A = np.array([ [1,4],[2,8] ])
+A
+Apinv = np.linalg.pinv(A)
+A @ Apinv
+```
+
+## Code Exercises
+
+Exercise 8-1.
+
+```{r}
+A <- matrix(data = rnorm(9), nrow = 3)
+A |> solve()
+A |> solve() |> solve()
+A
+```
+
+Exercise 8-3.
+
+```{r}
+A <- matrix(data = c(1,4,2,7), nrow = 2)
+
+shortinv <- function(mat) {
+    outmat <- matrix(data = 0, nrow = nrow(mat), ncol = ncol(mat))
+    diag(outmat) <- rev(diag(mat))
+    outmat[outmat != diag(outmat)] <- mat[mat != diag(mat)] * -1
+    det <- determinant(mat, logarithm = F)
+    det <- det$modulus[1] * det$sign
+    invdet <- 1 / det
+    outmat <- invdet * outmat
+    return(outmat)
+}
+
+shortinv(A)
+solve(A)
+```
+
+Exercise 8-6.
+
+```{r}
+sq1 <- matrix(data = rnorm(9), nrow = 3)
+sq2 <- matrix(data = rnorm(9), nrow = 3)
+sq3 <- sq1 %*% sq2
+
+solve(sq3)
+solve(sq1) %*% solve(sq2)
+solve(sq2) %*% solve(sq1)
+```
+
+Exercise 8-8.
+
+```{r}
+theta <- seq(0, 2*pi, length.out = 100)
+points <- cbind(sin(theta), cos(theta))
+kernel <- matrix(c(1,0,0.5,0.5), nrow = 2, ncol = 2) # invertable
+# kernel <- matrix(c(1,1,0.5,0.5), nrow = 2, ncol = 2) # non-invertable
+points2 <- points %*% kernel
+invk <- pracma::pinv(kernel)
+invpoints <- points2 %*% invk
+```
+
+```{r}
+plot(points, asp = 1, pch = 16)
+points(points2, asp = 1, col = "blue", pch = 15)
+points(invpoints, asp = 1, col = "red", pch = 4)
+```
+
+Exercise 8-9.
+
+```{r}
+makeHilbertMat <- function(length) {
+    outmat <- matrix(data = NA, nrow = length, ncol = length)
+    for (i in 1:length) {
+        for (j in 1:length) {
+            outmat[i,j] <- 1 / (i + j - 1)
+        }
+    }
+    return(outmat)
+}
+```
+
+```{r}
+makeHilbertMat <- function(length) {
+    vec <- seq(length)
+    outmat <- 1 / outer(vec - 1L, vec, "+")
+    return(outmat)
+}
+```
+
+```{r}
+makeHilbertMat(5)
+```
+
+
+```{r}
+Matrix::Hilbert(5)
+```
+
+Exercise 8-10.
+
+```{r}
+hmat <- Matrix::Hilbert(5)
+
+invhmat <- solve(hmat)
+
+mat1 <- hmat %*% invhmat
+
+eye <- diag(1,5)
+
+dist(mat1 - eye) |> log()
+```
+
+```{r}
+sizes <- seq(3,12)
+dists <- c()
+for (l in sizes) {
+    hmat <- Matrix::Hilbert(l)
+    invh <- solve(hmat)
+    tempMat <- hmat %*% invh
+    eye <- diag(1,l)
+    distance <- dist(tempMat - eye) |> mean()
+    logdist <- log(distance)
+    dists <- append(dists, logdist)
+}
+```
+

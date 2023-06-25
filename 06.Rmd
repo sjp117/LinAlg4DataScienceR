@@ -1,0 +1,171 @@
+---
+title: "Chapter 6: Matrices, Part 2"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{python}
+import numpy as np
+import scipy.linalg
+
+A = np.array([ [1,-1],[-2,2] ])
+B = np.array([ [1,-1],[-2,3] ])
+print( scipy.linalg.null_space(A) )
+print( scipy.linalg.null_space(B) )
+```
+
+```{r}
+A <- matrix(data = c(1,-1,-2,2), nrow = 2)
+B <- matrix(data = c(1,-1,-2,3), nrow = 2)
+MASS::Null(A)
+MASS::Null(B)
+```
+
+```{r}
+Matrix::rankMatrix(A)
+Matrix::det(c2)
+```
+
+Code Exercises
+
+Exercise 6-1.
+
+```{r}
+iter1 <- 10
+iter2 <- 50
+norms <- matrix(data = NA, nrow = 51, ncol = 10)
+
+for (j in 1:iter1) {
+    mat <- matrix(rnorm(100), nrow = 10, ncol = 10)
+    for (i in 0:iter2) {
+        mat2 <- i * mat
+        n <- norm(mat2, type = "F")
+        norms[(i+1),j] <- n
+    }
+}
+```
+
+```{r}
+dat <- data.frame(rowMeans(norms))
+dat$scaler <- 0:50
+colnames(dat) <- c("value", "scaler")
+```
+
+```{r}
+dat |>
+    ggplot(aes(x = scaler, y = value)) +
+    geom_line() +
+    geom_point()
+```
+
+Exercise 6-2.
+
+```{r}
+forbdist <- function(m1,m2) {
+    mat <- m1 - m2
+    distance <- norm(mat, type = "F")
+    return(distance)
+}
+```
+
+```{r}
+m1 <- matrix(data = rnorm(7*7), nrow = 7)
+m2 <- matrix(data = rnorm(7*7), nrow = 7)
+s <- 1
+```
+
+```{r}
+iter <- 1
+m1 <- s * m1
+m2 <- s * m2
+dist <- forbdist(m1,m2)
+
+while (dist > 1) {
+    iter <- iter + 1
+    s <- s * 0.9
+    m1 <- s * m1
+    m2 <- s * m2
+    dist <- forbdist(m1,m2)
+}
+
+iter
+s
+```
+
+Exercise 6-3.
+
+```{r}
+m1 <- matrix(data = rnorm(7*20), nrow = 7)
+norm(m1, type = "F")
+
+# trace methods
+mtrace <- function(m) {
+    diags <- diag(m)
+    return( sum(diags) )
+}
+
+sqrt(mtrace(t(m1) %*% m1))
+
+sqrt(mtrace(m1 %*% t(m1)))
+```
+
+Exercise 6-4.
+
+```{r}
+m1 <- matrix(data = rnorm(100), nrow = 10)
+n1 <- norm(m1, type = "F")
+
+change <- c()
+forbdist <- c()
+corr <- c()
+
+for (i in seq(0,1, length.out = 30)) {
+    m2 <- m1 + ((n1*i) * diag(nrow = 10, ncol = 10))
+    n2 <- norm(m2, type = "F")
+    change <- append(change, n2/n1)
+    forbdist <- append(forbdist, norm(m1 - m2, type = "F"))
+    corr <- append(corr, cor(as.vector(m1), as.vector(m2)))
+}
+```
+
+```{r}
+plot(change, type = "b")
+plot(corr, type = "b")
+plot(forbdist, type = "b")
+```
+
+Exercise 6-5.
+
+```{r}
+r <- 8
+M <- 4
+N <- 7
+m1 <- matrix(data = rnorm(M*r), nrow = M)
+m2 <- matrix(data = rnorm(r*N), nrow = r)
+mr <- m1 %*% m2
+
+Matrix::rankMatrix(m1)[1]
+Matrix::rankMatrix(m2)[1]
+Matrix::rankMatrix(mr)[1]
+```
+
+Exercise 6-7.
+
+```{r}
+makerankmat <- function(M,r) {
+    m1 <- matrix(data = rnorm(M*r), nrow = M)
+    m2 <- matrix(data = rnorm(r*M), nrow = r)
+    mr <- m1 %*% m2
+    return(mr)
+}
+```
+
+
+
+
+
+
+
+
+
+

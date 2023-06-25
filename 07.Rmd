@@ -1,0 +1,249 @@
+---
+title: "Chapter 7: Matrices Applications"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(gganimate)
+library(imager)
+```
+
+## Multivariate Data Covariance Matrices
+
+```{r}
+dat <- read.csv("https://archive.ics.uci.edu/ml/machine-learning-databases/communities/communities.data")
+
+# dat[dat == "?"] <- NA
+colnames(dat) <- c('state', 'county', 'community', 'communityname', 'fold', 'population', 'householdsize', 'racepctblack', 'racePctWhite', 
+'racePctAsian', 'racePctHisp', 'agePct12t21', 'agePct12t29', 'agePct16t24', 'agePct65up', 'numbUrban', 'pctUrban', 'medIncome', 'pctWWage', 
+'pctWFarmSelf', 'pctWInvInc', 'pctWSocSec', 'pctWPubAsst', 'pctWRetire', 'medFamInc', 'perCapInc', 'whitePerCap', 'blackPerCap', 'indianPerCap', 
+'AsianPerCap', 'OtherPerCap', 'HispPerCap', 'NumUnderPov', 'PctPopUnderPov', 'PctLess9thGrade', 'PctNotHSGrad', 'PctBSorMore', 'PctUnemployed', 'PctEmploy', 
+'PctEmplManu', 'PctEmplProfServ', 'PctOccupManu', 'PctOccupMgmtProf', 'MalePctDivorce', 'MalePctNevMarr', 'FemalePctDiv', 'TotalPctDiv', 'PersPerFam', 'PctFam2Par', 
+'PctKids2Par', 'PctYoungKids2Par', 'PctTeen2Par', 'PctWorkMomYoungKids', 'PctWorkMom', 'NumIlleg', 'PctIlleg', 'NumImmig', 'PctImmigRecent', 'PctImmigRec5', 
+'PctImmigRec8', 'PctImmigRec10', 'PctRecentImmig', 'PctRecImmig5', 'PctRecImmig8', 'PctRecImmig10', 'PctSpeakEnglOnly', 'PctNotSpeakEnglWell', 'PctLargHouseFam', 'PctLargHouseOccup', 
+'PersPerOccupHous', 'PersPerOwnOccHous', 'PersPerRentOccHous', 'PctPersOwnOccup', 'PctPersDenseHous', 'PctHousLess3BR', 'MedNumBR', 'HousVacant', 'PctHousOccup', 'PctHousOwnOcc', 
+'PctVacantBoarded', 'PctVacMore6Mos', 'MedYrHousBuilt', 'PctHousNoPhone', 'PctWOFullPlumb', 'OwnOccLowQuart', 'OwnOccMedVal', 'OwnOccHiQuart', 'RentLowQ', 'RentMedian', 
+'RentHighQ', 'MedRent', 'MedRentPctHousInc', 'MedOwnCostPctInc', 'MedOwnCostPctIncNoMtg', 'NumInShelters', 'NumStreet', 'PctForeignBorn', 'PctBornSameState', 'PctSameHouse85', 
+'PctSameCity85', 'PctSameState85', 'LemasSwornFT', 'LemasSwFTPerPop', 'LemasSwFTFieldOps', 'LemasSwFTFieldPerPop', 'LemasTotalReq', 'LemasTotReqPerPop', 'PolicReqPerOffic', 'PolicPerPop', 
+'RacialMatchCommPol', 'PctPolicWhite', 'PctPolicBlack', 'PctPolicHisp', 'PctPolicAsian', 'PctPolicMinor', 'OfficAssgnDrugUnits', 'NumKindsDrugsSeiz', 'PolicAveOTWorked', 'LandArea', 
+'PopDens', 'PctUsePubTrans', 'PolicCars', 'PolicOperBudg', 'LemasPctPolicOnPatr', 'LemasGangUnitDeploy', 'LemasPctOfficDrugUn', 'PolicBudgPerPop', 'ViolentCrimesPerPop')
+
+```
+
+```{r}
+# extract only the numeric data
+dat <- select(dat, where(is.numeric))
+
+# drop a few additional columns, and convert to a matrix
+dat <- select(dat, -c("state", "fold"))
+datMat <- as.matrix(dat)
+```
+
+```{r}
+# compute the mean of each data feature
+datmean <- mean(datMat)
+
+# mean-center the data using broadcasting
+datMatM <- datMat - datmean
+
+# confirm that any given feature has mean=0 (or very close...)
+colMeans(datMatM) |> mean()
+```
+
+```{r}
+# Now to compute the covariance matrix
+covMat <- t(datMatM) %*% datMatM        # data matrix times its transpose
+covMat <- covMat / (nrow(datMatM) - 1)  # divide by N-1
+
+# dynamic color scaling
+clim <- max(abs(covMat)) * .2
+```
+
+```{r}
+heatmap(covMat, Rowv=NA,Colv=NA, col = hcl.colors(50))
+```
+
+## Geometric Transformations via Matrix-Vector Multiplication
+
+```{r}
+th <- pi/5
+
+Tmat <- matrix(data = c(cos(th), -sin(th), sin(th), cos(th)), nrow = 2)
+
+# original dots are a vertical line
+x <- seq(-1, 1, length.out = 20)
+origPoints <- rbind(matrix(0,nrow = 1, ncol = 20), x)
+```
+
+```{r}
+# apply the transformation
+transformedPoints <- Tmat %*% origPoints
+
+# plot the points
+plot(y = origPoints[2,], x = origPoints[1,])
+points(y = transformedPoints[2,], x = transformedPoints[1,], col = "blue")
+```
+
+```{r}
+ggplot() +
+    geom_point(aes(x = origPoints[1,], 
+                   y = origPoints[2,], 
+                   col = "Original"),
+               shape = 16, size = 3) +
+    geom_point(aes(x = transformedPoints[1,], 
+                   y = transformedPoints[2,], 
+                   col = "Transformed"),
+               shape = 15, size = 3) +
+    theme_minimal() +
+    theme(axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
+          legend.title = element_blank())
+```
+
+## Image Feature Detection
+
+```{python}
+import numpy as np
+np.meshgrid(np.linspace(-3,3,21),np.linspace(-3,3,21))
+```
+
+```{r}
+x <- seq(-3,3,length.out = 21)
+y <- seq(-3,3,length.out = 21)
+
+xmat <- matrix(data = rep(x, length(x)), nrow = length(x)) |> t()
+ymat <- matrix(data = rep(x, length(x)), nrow = length(x))
+
+xmat <- pracma::meshgrid(x)$X
+ymat <- pracma::meshgrid(x)$Y
+
+kernel <- exp(-(xmat^2 + ymat^2) / 20)
+kernel <- kernel / sum(kernel)
+```
+
+## Code Exercises
+
+### Covariance and Correlation Matrices Exercises
+
+Exercise 7-1.
+
+```{r}
+covcorr <- function(datmat) {
+    covMat <- t(datmat) %*% datmat 
+    covMat <- covMat / (nrow(datmat) - 1)
+    S <- apply(datmat, 2, function(x) 1/sd(x)) |> diag()
+    r <- S %*% covMat %*% S
+    return(r)
+}
+
+corrMat <- covcorr(datMatM)
+colnames(corrMat) <- colnames(datMatM)
+rownames(corrMat) <- colnames(datMatM)
+```
+
+```{r}
+covMat <- t(datMatM) %*% datMatM
+covMat <- covMat / (nrow(datMatM) - 1)
+```
+
+
+```{r}
+heatmap(covMat, Rowv=NA,Colv=NA, col = gray.colors(30))
+heatmap(covMat2, Rowv=NA,Colv=NA, col = gray.colors(30))
+```
+
+```{r}
+corrMat2 <- cor(dat)
+```
+
+```{r}
+heatmap(corrMat, Rowv=NA,Colv=NA, col = gray.colors(10))
+heatmap(corrMat2, Rowv=NA,Colv=NA, col = gray.colors(10))
+
+```
+
+### Geometric Transformations Exercises
+
+Exercise 7-3.
+
+```{r}
+theta <- seq(0, 2*pi, length.out = 100)
+points <- cbind(sin(theta), cos(theta))
+kernel <- matrix(c(1,0,0.5,0.5), nrow = 2, ncol = 2)
+points2 <- points %*% kernel
+```
+
+```{r}
+plot(points, asp = 1, pch = 16)
+points(points2, asp = 1, col = "blue", pch = 15)
+```
+
+
+```{r}
+ggplot() +
+    geom_point(aes(x = points[,1], y = points[,2])) +
+    geom_point(aes(x = points2[,1], y = points2[,2]), 
+               col = "blue", shape = "square") +
+    theme_minimal() +
+    coord_fixed()
+```
+
+### Image Feature Detection Exercises
+
+Exercise 7-5.
+
+```{r}
+img <- load.image("https://upload.wikimedia.org/wikipedia/commons/6/61/De_nieuwe_vleugel_van_het_Stedelijk_Museum_Amsterdam.jpg")
+# img <- grayscale(img)
+```
+
+```{r}
+plot(img)
+```
+
+```{r}
+x <- seq(-3,3,length.out = 21)
+y <- seq(-3,3,length.out = 21)
+
+xmat <- matrix(data = rep(x, length(x)), nrow = length(x)) |> t()
+ymat <- matrix(data = rep(x, length(x)), nrow = length(x))
+
+xmat <- pracma::meshgrid(x)$X
+ymat <- pracma::meshgrid(x)$Y
+
+kernel <- exp(-(xmat^2 + ymat^2) / 20)
+kernel <- kernel / sum(kernel)
+```
+
+```{r}
+filter <- as.cimg(kernel)
+img2 <- img |> correlate(filter)
+```
+
+```{r}
+layout(t(1:2))
+plot(img)
+plot(img2)
+```
+
+Exercise 7-7.
+
+```{r}
+k1 <- matrix(data = c(1,1,1,0,0,0,-1,-1,-1), nrow = 3)
+k1 <- as.cimg(k1)
+k2 <- matrix(data = c(1,1,1,0,0,0,-1,-1,-1), nrow = 3) |> t()
+k2 <- as.cimg(k2)
+```
+
+```{r}
+layout(t(1:2))
+img |> grayscale() |> convolve(k1) |> plot()
+img |> grayscale() |> convolve(k2) |> plot()
+```
+
+
+

@@ -1,0 +1,145 @@
+---
+title: "Chapter 2: Vectors, Part 1"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+## Code Exercises
+
+Exercise 2-1.
+
+```{r}
+V <- c(1,2)
+W <- c(4,-6)
+VW <- V + W
+plot(NA, xlim = c(-1,6), ylim = c(-6,3))
+arrows(0,0,V[1],V[2], length = 0.2, col = "blue")
+arrows(V[1],V[2],VW[1], VW[2], length = 0.2, col = "red")
+arrows(0,0,VW[1],VW[2], length = 0.2, col = "green")
+```
+
+```{r}
+V <- c(1,2)
+W <- c(4,-6)
+VW <- V - W
+plot(NA, xlim = c(-1,6), ylim = c(-6,3))
+arrows(0,0,V[1],V[2], length = 0.2, col = "blue")
+arrows(0,0,W[1], W[2], length = 0.2, col = "red")
+arrows(W[1],W[2],V[1],V[2], length = 0.2, col = "green")
+```
+
+Exercise 2-2.
+
+Norm of vectors
+
+```{r}
+V <- c(1,2,3,7,8,9)
+vnorm <- V^2 |> sum() |> sqrt()
+vnorm
+```
+
+```{python}
+import numpy as np
+v = np.array([1,2,3,7,8,9])
+v_dim = len(v) # math dimensionality
+v_mag = np.linalg.norm(v) # math magnitude, length, or norm
+v_mag
+```
+
+Exercise 2-3.
+
+```{r}
+V <- c(-7,6)
+vnorm <- V^2 |> sum() |> sqrt()
+vunit <- V / vnorm
+vunit
+```
+
+Exercise 2-4.
+
+```{r}
+normv <- function(v) {
+    return( v^2 |> sum() |> sqrt() )
+}
+
+unitv <- function(v) {
+    return( v / normv(v) )
+}
+
+unitMag <- function(v,m) {
+    return( m * unitv(v) )
+}
+
+V <- c(1,2)
+unitMag(V,4)
+```
+
+Exercise 2-6.
+
+you can compute the squared norm of a vector as the dot product of that vector with itself. Look back to Equation 2-8 to convince yourself of this equivalence. Then confirm it using code.
+
+```{r}
+v <- c(1,2,3,7,8,9)
+
+normv(v) ^ 2
+
+v %*% v
+```
+
+Exercise 2-7.
+
+Write code to demonstrate that the dot product is commutative. Commutative means that a × b = b × a, which, for the vector dot product, means that aTb = bTa. After demonstrating this in code, use equation Equation 2-9 to understand why the dot product is commutative.
+
+```{r}
+a <- c(1,-2,3,-4)
+b <- c(-5,6,-7,8)
+a %*% b
+b %*% a
+```
+
+Exercise 2-9.
+
+Implement orthogonal vector decomposition. Start with two random-number vectors t and r, and reproduce Figure 2-8 (note that your plot will look somewhat different due to random numbers). Next, confirm that the two components sum to t and that tTr and t\|\|r are orthogonal.
+
+```{r}
+r <- c(1.2,-0.05)
+t <- c(0.8, -0.8)
+
+paradecomp <- function(r,t) {
+    return( r %*% ((t(t) %*% r) / (t(r) %*% r)) )
+}
+
+perpendecomp <- function(r,t) {
+    return( t - paradecomp(r,t) )
+}
+
+tpara <- paradecomp(r,t)
+tper <- perpendecomp(r,t)
+
+# plots
+
+plot(NA, xlim = c(-0.1,1.3), ylim = c(-1,0.2))
+segments(x0 = 0, y0 = 0, x1 = r[1], y1 = r[2], col = "blue")
+segments(x0 = 0, y0 = 0, x1 = t[1], y1 = t[2], col = "blue")
+segments(x0 = 0, y0 = 0, x1 = tpara[1], y1 = tpara[2], col = "red", lwd = 5)
+segments(x0 = 0, y0 = 0, x1 = tper[1], y1 = tper[2], col = "green", lwd = 5)
+segments(x0 = t[1], y0 = t[2], x1 = tpara[1], y1 = tpara[2], col = "black", lwd = 5)
+```
+
+```{r}
+library(ggplot2)
+```
+
+```{r}
+ggplot() +
+    geom_segment(aes(x = 0, y = 0, xend = r[1], yend = r[2]), 
+                 color = "grey", size = 2) +
+    geom_segment(aes(x = 0, y = 0, xend = t[1], yend = t[2]), size = 2) +
+    geom_segment(aes(x = 0, y = 0, xend = tpara[1], yend = tpara[2]), 
+                 linetype="dashed", size = 2) +
+    geom_segment(aes(x = 0, y = 0, xend = tper[1], yend = tper[2]), 
+                 linetype="dotted", size = 2) +
+    # geom_segment(aes(x = t[1], y = t[2], xend = tpara[1], yend = tpara[2]), a = 0.5) +
+    theme_classic()
+```
+

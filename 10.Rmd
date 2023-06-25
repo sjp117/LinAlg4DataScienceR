@@ -1,0 +1,247 @@
+---
+title: "Chapter 10: Row Reduction and LU Decomposition"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r}
+library(Matrix)
+library(pracma)
+```
+
+
+## Working with Matrix Equations
+
+### R
+
+```{r}
+A <- matrix(data = rnorm(4*4), nrow = 4)
+B <- matrix(data = rnorm(4*4), nrow = 4)
+```
+
+```{r}
+# solve for X
+X1 <- solve(A) %*% B
+X2 <- B %*% solve(A)
+X1
+X2
+```
+
+```{r}
+# residual (should be zeros matrix)
+res1 <- A %*% X1 - B
+res2 <- A %*% X2 - B
+res1 |> round(14)
+res2 |> round(14)
+```
+
+### Python
+
+```{python}
+import numpy as np
+
+A = np.random.randn(4,4)
+B = np.random.randn(4,4)
+```
+
+```{python}
+# solve for X
+X1 = np.linalg.inv(A) @ B
+X2 = B @ np.linalg.inv(A)
+print(X1)
+print(X2)
+```
+
+```{python}
+# residual (should be zeros matrix)
+res1 = A @ X1 - B
+res2 = A @ X2 - B
+print(res1.round(14))
+print(res2.round(14))
+```
+
+## Row Reduction
+
+"The goal of row reduction is to transform a dense matrix into an upper-triangle matrix."
+
+## Gaussian Elimination
+
+## Gauss-Jordan Elimination
+
+### Python
+
+```{python}
+import sympy as sym
+import numpy as np
+
+# the matrix converted to sympy
+M = np. array([[1,1,4], [-1/2,1,2]])
+symMat = sym.Matrix(M)
+```
+
+```{python}
+symMat.rref()[0]
+```
+
+### R
+
+```{r}
+M <- matrix(data = c(1, -1/2, 1, 1), nrow = 2)
+b <- c(4, 2)
+matlib::gaussianElimination(M, b)
+```
+
+## LU Decomposition
+
+"LU" stands for "lower upper". The idea is to decompose a matrix into the product of two triangular matrices.
+
+A = LU
+
+```{r}
+# numerical example
+
+L <- matrix(data = c(1,1/2,1,0,1,1,0,0,1), nrow = 3)
+U <- matrix(data = c(2,0,0,2,-1,0,4,1,3), nrow = 3)
+print("Lower")
+L
+print("Upper")
+U
+L %*% U
+```
+
+## Row Swaps via Permutation Matrices
+
+Row swaps are one of the tricks of row reduction, and are implemented through a permutation matrix.
+
+```{r}
+mat1 <- matrix(data = c(3,0,0,2,0,7,1,5,2), nrow = 3)
+mat1
+
+pmat <- matrix(data = c(1,0,0,0,0,1,0,1,0), nrow = 3)
+pmat
+
+pmat %*% mat1
+```
+
+```{r}
+heatmap(mat1, Rowv = NA, Colv = NA, scale = "none")
+heatmap(pmat, Rowv = NA, Colv = NA, scale = "none")
+heatmap(pmat %*% mat1, Rowv = NA, Colv = NA, scale = "none")
+```
+
+Exercise 10-1.
+
+```{r}
+mat1 <- matrix(data = rnorm(100*100), nrow = 100)
+```
+
+```{r}
+lumat <- Matrix::lu(mat1)
+```
+
+Exercise 10-2.
+
+```{r}
+mat1 <- matrix(data = rnorm(3*6), nrow = 6)
+Matrix::rankMatrix(mat1)[1]
+mat2 <- matrix(data = rnorm(3*8), nrow = 3)
+Matrix::rankMatrix(mat2)[1]
+mat3 <- mat1 %*% mat2
+Matrix::rankMatrix(mat3)[1]
+```
+
+```{r}
+luMat <- Matrix::lu(mat3)
+L <- Matrix::expand(luMat)$L |> round(14) |> as.matrix()
+U <- Matrix::expand(luMat)$U |> round(14) |> as.matrix()
+```
+
+```{r}
+heatmap(mat3, Rowv = NA, Colv = NA, scale = "none")
+heatmap(L, Rowv = NA, Colv = NA, scale = "none")
+heatmap(U, Rowv = NA, Colv = NA, scale = "none")
+```
+
+Exercise 10-3.
+
+```{r}
+mat1 <- matrix(data = rnorm(5*5), nrow = 5)
+lumat <- Matrix::lu(mat1)
+U <- Matrix::expand(lumat)$U |> as.matrix()
+```
+
+
+```{r}
+diag(U) |> prod()
+Matrix::det(mat1)
+```
+
+Exercise 10-4.
+
+```{r}
+n = 4
+A <- matrix(data = rnorm(n*n), nrow = n)
+A
+```
+
+```{r}
+lumat <- Matrix::lu(A) |> Matrix::expand()
+U <- as.matrix(lumat$U)
+L <- as.matrix(lumat$L)
+P <- as.matrix(lumat$P)
+```
+
+```{r}
+inv(U) %*% inv(L) %*% t(P)
+inv(A)
+```
+
+```{r}
+A %*% inv(A) |> round(14)
+```
+
+```{python}
+import numpy as np
+
+A = np.random.rand(4,4)
+A
+```
+
+```{python}
+import scipy
+
+lumat = scipy.linalg.lu(A)
+P = lumat[0]
+L = lumat[1]
+U = lumat[2]
+```
+
+```{python}
+np.linalg.inv(U) @ np.linalg.inv(L) @ P.T
+np.linalg.inv(A)
+```
+
+```{python}
+mat = A @ np.linalg.inv(A)
+mat.round(14)
+```
+
+Exercise 10-5.
+
+```{r}
+n = 4
+A <- matrix(data = rnorm(n*n), nrow = n)
+A
+```
+
+```{r}
+lumat <- Matrix::lu(A) |> Matrix::expand()
+U <- as.matrix(lumat$U)
+L <- as.matrix(lumat$L)
+P <- as.matrix(lumat$P)
+```
+
+```{r}
+t(U) %*% t(L) %*% L %*% U
+t(A) %*% A
+```
